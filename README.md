@@ -1,20 +1,20 @@
 # ErojuEntiii
 
-Decide what to eat today — a Telegram bot backed by Gemini and Firebase.
+Decide what to eat today — web app + Python API backed by Gemini and Firestore.
 
-## What it does
+## Architecture
 
-- Suggests breakfast, lunch, or dinner based on your preferences
-- Uses pantry items, cuisine, and region stored in Firestore
-- Saves meal history per Telegram user
-- Exposes a REST API at `GET /get-meal` and `POST /get-meal`
+```text
+web/ (Firebase Hosting)  →  Python API (Render / Cloud Run)  →  Firestore + Gemini
+```
+
+No auth for now — the web app uses a random `user_id` in `localStorage` to save pantry, prefs, and meal history.
 
 ## Prerequisites
 
-1. [Telegram Bot Token](https://t.me/BotFather)
-2. [Gemini API key](https://aistudio.google.com/apikey)
-3. Firebase project with Firestore enabled
-4. Firebase service account JSON (Project settings → Service accounts → Generate new private key)
+1. [Gemini API key](https://aistudio.google.com/apikey)
+2. Firebase project **erojuentiii** with Firestore enabled
+3. Firebase service account JSON (Project settings → Service accounts)
 
 ## Setup
 
@@ -25,73 +25,93 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Edit `.env` and place your Firebase service account file at the path set in `FIREBASE_CREDENTIALS_PATH`.
+Edit `.env` with your Gemini key and Firebase credentials path.
 
-## Run the Telegram bot
+## Run locally
 
-```bash
-python -m app.bot.telegram_bot
-```
-
-## Run the API
+**API:**
 
 ```bash
 python -m app.main
 ```
 
-Open `http://localhost:8000/docs` for interactive API docs.
-
-### Example API requests
-
-Only `meal_type` is required. Everything else is optional.
+**Web** (separate terminal):
 
 ```bash
-# Minimal
-curl "http://localhost:8000/get-meal?meal_type=lunch"
+# Option A: Firebase emulator
+firebase emulators:start --only hosting
 
-# With optional params
-curl "http://localhost:8000/get-meal?meal_type=lunch&cuisine_type=South%20Indian&region=Hyderabad&pantry=rice,dal,tomatoes&custom=light%20meal,%2020%20minutes%20max"
+# Option B: any static server from web/
+python -m http.server 5000 --directory web
 ```
+
+Set `web/js/config.js`:
+
+```javascript
+window.APP_CONFIG = { API_BASE: "http://localhost:8000" };
+```
+
+Open `http://localhost:5000` (or emulator URL).
+
+## Deploy
+
+### 1. API → Render (or Cloud Run)
+
+**Render:** New Web Service → connect repo → Environment:
+
+- `GEMINI_API_KEY`
+- `FIREBASE_CREDENTIALS_JSON` (paste full service account JSON)
+- `CORS_ORIGINS=https://erojuentiii.web.app,https://erojuentiii.firebaseapp.com`
+
+**Cloud Run:**
 
 ```bash
-curl -X POST http://localhost:8000/get-meal \
-  -H "Content-Type: application/json" \
-  -d '{"meal_type": "lunch"}'
+gcloud run deploy erojuentiii-api --source . --region asia-south1 --allow-unauthenticated
 ```
 
-## Bot commands
+### 2. Web → Firebase Hosting
 
-| Command | Description |
-|---------|-------------|
-| `/start` | Welcome and register user |
-| `/meal` | Get a meal suggestion |
-| `/pantry rice, eggs` | Set pantry items |
-| `/setcuisine South Indian` | Save cuisine preference |
-| `/setregion Hyderabad` | Save region |
-| `/help` | Show help |
+Update `web/js/config.js` with your deployed API URL, then:
+
+```bash
+firebase deploy --only hosting,firestore:rules
+```
+
+## API
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
+| `POST /api/get-meal` | Generate meal (`meal_type` required) |
+| `GET /api/user?user_id=` | Load profile |
+| `PUT /api/user/pantry?user_id=` | Save pantry |
+| `PUT /api/user/prefs?user_id=` | Save cuisine / region |
+| `GET /api/user/meals?user_id=` | Recent meals |
+
+Legacy routes `GET/POST /get-meal` still work.
+
+## Optional: Telegram bot (dev)
+
+```bash
+# Set TELEGRAM_BOT_TOKEN in .env
+python -m app.bot.telegram_bot
+```
 
 ## Project layout
 
-```
-app/
-├── api/routes.py       # FastAPI routes
-├── bot/telegram_bot.py # Telegram handlers
-├── models/             # Pydantic models
-├── services/
-│   ├── ai_agent.py     # Gemini integration
-│   ├── firebase_service.py
-│   └── meal_service.py # Orchestration
-├── config.py
-└── main.py
+```text
+app/           Python API + services
+web/           Static frontend (Firebase Hosting)
+firebase.json  Hosting + Firestore rules
+Dockerfile     Container deploy for API
 ```
 
 ## Firestore structure
 
-```
-users/{telegram_user_id}
+```text
+users/{user_id}
   prefs: { cuisine, region, default_macros }
   pantry: ["rice", "eggs"]
   meals/{meal_id}
-    params: { ... }
-    meal: { ... }
+    params, meal, created_at
 ```

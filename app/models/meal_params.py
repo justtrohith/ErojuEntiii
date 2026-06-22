@@ -38,7 +38,12 @@ class MealParams(BaseModel):
     pantry: list[str] = Field(default_factory=list)
     custom: Optional[str] = Field(default=None)
     time_available_minutes: Optional[int] = Field(default=None)
+    user_id: Optional[str] = Field(default=None)
     telegram_user_id: Optional[str] = Field(default=None)
+
+    @property
+    def resolved_user_id(self) -> Optional[str]:
+        return self.user_id or self.telegram_user_id
 
     @field_validator("cuisine_type", "region", "weather", "custom", mode="before")
     @classmethod

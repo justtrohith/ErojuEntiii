@@ -1,9 +1,10 @@
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 from app.models.meal_params import MacroTargets, MealParams, MealRecommendation, MealType
-from app.services import meal_service
+from app.models.user import MealHistoryItem, PantryUpdate, PrefsUpdate, UserPrefs, UserProfile
+from app.services import firebase_service, meal_service
 
 router = APIRouter()
 
@@ -30,9 +31,58 @@ def _macros_from_query(
     return MacroTargets(calories=calories, protein_g=protein_g, carbs_g=carbs_g, fat_g=fat_g)
 
 
+def _user_profile(user_id: str) -> UserProfile:
+    user = firebase_service.ensure_user(user_id)
+    prefs = user.get("prefs") or {}
+    return UserProfile(
+        user_id=user_id,
+        display_name=user.get("display_name"),
+        pantry=user.get("pantry") or [],
+        prefs=UserPrefs.model_validate(prefs),
+    )
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@router.get("/api/user", response_model=UserProfile)
+def get_user_profile(user_id: Annotated[str, Query(min_length=1)]) -> UserProfile:
+    try:
+        return _user_profile(user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.put("/api/user/pantry", response_model=UserProfile)
+def update_user_pantry(user_id: Annotated[str, Query(min_length=1)], body: PantryUpdate) -> UserProfile:
+    try:
+        firebase_service.update_pantry(user_id, body.pantry)
+        return _user_profile(user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.put("/api/user/prefs", response_model=UserProfile)
+def update_user_prefs(user_id: Annotated[str, Query(min_length=1)], body: PrefsUpdate) -> UserProfile:
+    try:
+        firebase_service.update_prefs(user_id, cuisine=body.cuisine, region=body.region)
+        return _user_profile(user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/api/user/meals", response_model=list[MealHistoryItem])
+def get_user_meals(
+    user_id: Annotated[str, Query(min_length=1)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> list[MealHistoryItem]:
+    try:
+        meals = firebase_service.list_meal_history(user_id, limit=limit)
+        return [MealHistoryItem.model_validate(item) for item in meals]
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/get-meal", response_model=MealRecommendation)
@@ -43,6 +93,7 @@ def get_meal_query(
     weather: Optional[str] = Query(default=None),
     custom: Optional[str] = Query(default=None),
     time_available_minutes: Optional[int] = Query(default=None),
+    user_id: Optional[str] = Query(default=None),
     telegram_user_id: Optional[str] = Query(default=None),
     pantry: Optional[str] = Query(default=None, description="Comma-separated pantry items"),
     calories: Optional[int] = Query(default=None),
@@ -57,6 +108,7 @@ def get_meal_query(
         weather=weather,
         custom=custom,
         time_available_minutes=time_available_minutes,
+        user_id=user_id,
         telegram_user_id=telegram_user_id,
         pantry=pantry,
         macros=_macros_from_query(calories, protein_g, carbs_g, fat_g),
@@ -65,5 +117,6 @@ def get_meal_query(
 
 
 @router.post("/get-meal", response_model=MealRecommendation)
+@router.post("/api/get-meal", response_model=MealRecommendation)
 def get_meal_body(params: MealParams) -> MealRecommendation:
     return _get_meal(params)

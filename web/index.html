@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ErojuEntiii — What to eat today</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>ErojuEntiii</h1>
+        <p class="subtitle">Decide what to eat today</p>
+      </header>
+
+      <section class="card">
+        <h2>Your pantry</h2>
+        <textarea id="pantry" rows="3" placeholder="rice, eggs, dal, tomatoes"></textarea>
+        <button id="save-pantry" type="button">Save pantry</button>
+      </section>
+
+      <section class="card">
+        <h2>Preferences</h2>
+        <label>
+          Cuisine
+          <input id="cuisine" type="text" placeholder="South Indian" />
+        </label>
+        <label>
+          Region
+          <input id="region" type="text" placeholder="Hyderabad" />
+        </label>
+        <button id="save-prefs" type="button">Save preferences</button>
+      </section>
+
+      <section class="card">
+        <h2>Get a meal</h2>
+        <div class="meal-types" role="group" aria-label="Meal type">
+          <button type="button" class="meal-type active" data-meal-type="breakfast">Breakfast</button>
+          <button type="button" class="meal-type" data-meal-type="lunch">Lunch</button>
+          <button type="button" class="meal-type" data-meal-type="dinner">Dinner</button>
+        </div>
+        <label>
+          Notes (optional)
+          <input id="custom" type="text" placeholder="light meal, 20 minutes max" />
+        </label>
+        <button id="get-meal" type="button" class="primary">Suggest meal</button>
+      </section>
+
+      <section id="result" class="card hidden">
+        <h2>Suggestion</h2>
+        <div id="meal-output"></div>
+      </section>
+
+      <section class="card">
+        <h2>Recent meals</h2>
+        <ul id="history"></ul>
+      </section>
+
+      <p id="status" class="status" aria-live="polite"></p>
+    </main>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/app.js"></script>
+  </body>
+</html>

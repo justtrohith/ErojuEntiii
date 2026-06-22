@@ -202,7 +202,7 @@ async def _generate_meal(
     params = MealParams(
         meal_type=MealType(meal_type_value),
         custom=custom,
-        telegram_user_id=str(user.id),
+        user_id=str(user.id),
     )
 
     try:

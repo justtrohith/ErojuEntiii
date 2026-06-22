@@ -3,12 +3,13 @@ from app.services import ai_agent, firebase_service
 
 
 def _merge_user_context(params: MealParams) -> MealParams:
-    if not params.telegram_user_id:
+    user_id = params.resolved_user_id
+    if not user_id:
         return params
 
-    user = firebase_service.get_user(params.telegram_user_id)
+    user = firebase_service.get_user(user_id)
     if not user:
-        firebase_service.ensure_user(params.telegram_user_id)
+        firebase_service.ensure_user(user_id)
         return params
 
     prefs = user.get("prefs") or {}
@@ -29,9 +30,10 @@ def get_meal(params: MealParams) -> MealRecommendation:
     enriched = _merge_user_context(params)
     meal = ai_agent.generate_meal(enriched)
 
-    if params.telegram_user_id:
+    user_id = params.resolved_user_id
+    if user_id:
         firebase_service.save_meal_history(
-            params.telegram_user_id,
+            user_id,
             enriched.model_dump(mode="json"),
             meal.model_dump(mode="json"),
         )
