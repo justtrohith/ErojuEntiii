@@ -23,6 +23,17 @@ def _merge_user_context(params: MealParams) -> MealParams:
     if not merged.pantry and pantry:
         merged.pantry = list(pantry)
 
+    recent_names = firebase_service.list_recent_meal_names(user_id, days=6)
+    exclude: list[str] = []
+    seen: set[str] = set()
+    for name in list(merged.rejected_meals) + recent_names:
+        key = name.strip().casefold()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        exclude.append(name.strip())
+    merged.rejected_meals = exclude
+
     return merged
 
 

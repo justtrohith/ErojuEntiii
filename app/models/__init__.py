@@ -1,3 +1,19 @@
-from app.models.meal_params import MacroTargets, MealParams, MealRecommendation, MealType
+from app.models.meal_params import (
+    ComponentRole,
+    MacroTargets,
+    MealComponent,
+    MealParams,
+    MealRecommendation,
+    MealSuggestionResponse,
+    MealType,
+)
 
-__all__ = ["MacroTargets", "MealParams", "MealRecommendation", "MealType"]
+__all__ = [
+    "ComponentRole",
+    "MacroTargets",
+    "MealComponent",
+    "MealParams",
+    "MealRecommendation",
+    "MealSuggestionResponse",
+    "MealType",
+]

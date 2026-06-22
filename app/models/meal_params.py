@@ -1,13 +1,21 @@
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class MealType(str, Enum):
     BREAKFAST = "breakfast"
     LUNCH = "lunch"
     DINNER = "dinner"
+
+
+class ComponentRole(str, Enum):
+    BASE = "base"
+    PROTEIN = "protein"
+    VEGETABLE = "vegetable"
+    SIDE = "side"
+    OPTIONAL = "optional"
 
 
 class MacroTargets(BaseModel):
@@ -23,6 +31,23 @@ class MacroTargets(BaseModel):
         return all(
             value is None for value in (self.calories, self.protein_g, self.carbs_g, self.fat_g)
         )
+
+
+class MealComponent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    role: ComponentRole
+    name: str
+    ingredients: list[str] = Field(default_factory=list)
+    steps: list[str] = Field(default_factory=list)
+    macros_estimate: MacroTargets = Field(default_factory=MacroTargets)
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def normalize_role(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
 
 
 class MealParams(BaseModel):
@@ -83,11 +108,32 @@ class MealParams(BaseModel):
 class MealRecommendation(BaseModel):
     name: str
     description: str = ""
+    components: list[MealComponent] = Field(default_factory=list)
     ingredients: list[str] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list)
     macros_estimate: MacroTargets = Field(default_factory=MacroTargets)
     time_minutes: Optional[int] = None
     uses_pantry: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def normalize_legacy_or_components(self) -> "MealRecommendation":
+        if self.components:
+            return self
+        if self.ingredients or self.steps:
+            return self.model_copy(
+                update={
+                    "components": [
+                        MealComponent(
+                            role=ComponentRole.SIDE,
+                            name=self.name,
+                            ingredients=list(self.ingredients),
+                            steps=list(self.steps),
+                            macros_estimate=self.macros_estimate,
+                        )
+                    ]
+                }
+            )
+        return self
 
 
 class MealSuggestionResponse(BaseModel):

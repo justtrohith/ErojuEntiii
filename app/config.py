@@ -52,23 +52,13 @@ def get_firebase_credentials_dict() -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-DEFAULT_MEAL_PROMPT = """You are ErojuEntiii, a helpful meal planner for Indian home cooking.
-Suggest ONE specific meal that fits the constraints.
-Prefer simple, practical recipes using pantry items when possible.
-Respond with JSON only, no markdown fences, using this schema:
-{
-  "name": "meal name",
-  "description": "one sentence",
-  "ingredients": ["item1", "item2"],
-  "steps": ["step1", "step2"],
-  "macros_estimate": {"calories": 450, "protein_g": 30, "carbs_g": 40, "fat_g": 15},
-  "time_minutes": 25,
-  "uses_pantry": ["items from pantry used"]
-}"""
+_PROMPT_FILE = Path(__file__).resolve().parent / "prompts" / "default_meal_prompt.txt"
 
 
 def get_meal_prompt_template() -> str:
     prompt = get_settings().meal_prompt.strip()
     if prompt:
         return prompt.replace("\\n", "\n")
-    return DEFAULT_MEAL_PROMPT
+    if _PROMPT_FILE.exists():
+        return _PROMPT_FILE.read_text(encoding="utf-8").strip()
+    raise FileNotFoundError(f"Default meal prompt not found at {_PROMPT_FILE}")

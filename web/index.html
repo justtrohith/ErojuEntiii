@@ -8,29 +8,15 @@
   </head>
   <body>
     <main class="container">
-      <header>
-        <h1>ErojuEntiii</h1>
-        <p class="subtitle">Decide what to eat today</p>
+      <header class="page-header">
+        <div>
+          <h1>ErojuEntiii</h1>
+          <p class="subtitle">Decide what to eat today</p>
+        </div>
+        <button id="open-settings" type="button" class="settings-button" aria-haspopup="dialog">
+          Settings
+        </button>
       </header>
-
-      <section class="card">
-        <h2>Your pantry</h2>
-        <textarea id="pantry" rows="3" placeholder="rice, eggs, dal, tomatoes"></textarea>
-        <button id="save-pantry" type="button">Save pantry</button>
-      </section>
-
-      <section class="card">
-        <h2>Preferences</h2>
-        <label>
-          Cuisine
-          <input id="cuisine" type="text" placeholder="South Indian" />
-        </label>
-        <label>
-          Region
-          <input id="region" type="text" placeholder="Hyderabad" />
-        </label>
-        <button id="save-prefs" type="button">Save preferences</button>
-      </section>
 
       <section class="card">
         <h2>Get a meal</h2>
@@ -62,6 +48,44 @@
 
       <p id="status" class="status" aria-live="polite"></p>
     </main>
+
+    <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+      <div class="modal-backdrop" data-close-settings></div>
+      <div class="modal-panel">
+        <button type="button" class="modal-close" data-close-settings aria-label="Close">&times;</button>
+        <h2 id="settings-modal-title">Settings</h2>
+        <p class="modal-description">Pantry and preferences shape your meal suggestions.</p>
+
+        <div class="modal-section">
+          <h3>Your pantry</h3>
+          <textarea id="pantry" rows="3" placeholder="rice, eggs, dal, tomatoes"></textarea>
+        </div>
+
+        <div class="modal-section">
+          <h3>Preferences</h3>
+          <label>
+            Cuisine
+            <input id="cuisine" type="text" placeholder="South Indian" />
+          </label>
+          <label>
+            Region
+            <input id="region" type="text" placeholder="Hyderabad" />
+          </label>
+        </div>
+
+        <button id="save-settings" type="button" class="primary settings-save">Save settings</button>
+      </div>
+    </div>
+
+    <div id="meal-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="meal-modal-title">
+      <div class="modal-backdrop" data-close-meal></div>
+      <div class="modal-panel">
+        <button type="button" class="modal-close" data-close-meal aria-label="Close">&times;</button>
+        <h2 id="meal-modal-title"></h2>
+        <p id="meal-modal-description" class="modal-description"></p>
+        <div id="meal-modal-body"></div>
+      </div>
+    </div>
 
     <script src="/js/config.js"></script>
     <script src="/js/app.js"></script>

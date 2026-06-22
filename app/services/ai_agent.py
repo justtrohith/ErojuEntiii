@@ -6,7 +6,7 @@ from typing import Any
 from google import genai
 
 from app.config import get_meal_prompt_template, get_settings
-from app.models.meal_params import MealParams, MealRecommendation
+from app.models.meal_params import MealParams, MealRecommendation, MealType
 
 
 @lru_cache
@@ -42,10 +42,13 @@ def _build_prompt(params: MealParams) -> str:
         lines.append(f"Additional notes: {params.custom}")
     if params.rejected_meals:
         lines.append(
-            "Do NOT suggest these meals (user rejected them): "
+            "Do NOT suggest these exact dishes (eaten in the last 6 days or rejected this session): "
             + ", ".join(params.rejected_meals)
         )
-        lines.append("Suggest something clearly different.")
+        lines.append("Suggest a clearly different plate name and recipe.")
+
+    if params.meal_type in (MealType.LUNCH, MealType.DINNER):
+        lines.append("Reminder: full plate protein_g must be >= 40 in macros_estimate.")
 
     lines.append("Keep steps practical and concise.")
     return "\n".join(lines)
@@ -66,6 +69,18 @@ def _extract_json(text: str) -> dict[str, Any]:
         return json.loads(match.group())
 
 
+def _validate_meal(meal: MealRecommendation, params: MealParams) -> None:
+    if not meal.components:
+        raise ValueError("Meal response must include a non-empty components array.")
+
+    if params.meal_type in (MealType.LUNCH, MealType.DINNER):
+        protein = meal.macros_estimate.protein_g
+        if protein is None or protein < 40:
+            raise ValueError(
+                f"Lunch/dinner plate must have protein_g >= 40 (got {protein})."
+            )
+
+
 def generate_meal(params: MealParams) -> MealRecommendation:
     settings = get_settings()
     client = _get_client()
@@ -75,4 +90,6 @@ def generate_meal(params: MealParams) -> MealRecommendation:
     )
     raw = response.text or ""
     data = _extract_json(raw)
-    return MealRecommendation.model_validate(data)
+    meal = MealRecommendation.model_validate(data)
+    _validate_meal(meal, params)
+    return meal

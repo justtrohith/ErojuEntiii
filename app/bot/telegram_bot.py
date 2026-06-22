@@ -52,15 +52,32 @@ def _format_meal(meal: MealRecommendation) -> str:
         "",
     ]
     if macro_line:
-        lines.append(f"Est. macros: {' · '.join(macro_line)}")
+        lines.append(f"Est. plate macros: {' · '.join(macro_line)}")
     if meal.time_minutes:
         lines.append(f"Time: ~{meal.time_minutes} min")
     if meal.uses_pantry:
         lines.append(f"From your pantry: {', '.join(meal.uses_pantry)}")
-    if meal.ingredients:
-        lines.extend(["", "*Ingredients*", *[f"• {item}" for item in meal.ingredients]])
-    if meal.steps:
-        lines.extend(["", "*Steps*", *[f"{i}. {step}" for i, step in enumerate(meal.steps, 1)]])
+
+    if meal.components:
+        for component in meal.components:
+            lines.extend(["", f"*{component.name}* ({component.role.value})"])
+            comp_macros = component.macros_estimate
+            comp_parts = []
+            if comp_macros.protein_g is not None:
+                comp_parts.append(f"{comp_macros.protein_g}g protein")
+            if comp_macros.calories is not None:
+                comp_parts.append(f"{comp_macros.calories} cal")
+            if comp_parts:
+                lines.append(" · ".join(comp_parts))
+            if component.ingredients:
+                lines.extend([f"• {item}" for item in component.ingredients])
+            if component.steps:
+                lines.extend([f"{i}. {step}" for i, step in enumerate(component.steps, 1)])
+    else:
+        if meal.ingredients:
+            lines.extend(["", "*Ingredients*", *[f"• {item}" for item in meal.ingredients]])
+        if meal.steps:
+            lines.extend(["", "*Steps*", *[f"{i}. {step}" for i, step in enumerate(meal.steps, 1)]])
 
     return "\n".join(lines)
 

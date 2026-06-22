@@ -115,3 +115,30 @@ def list_meal_history(user_id: str, limit: int = 10) -> list[dict[str, Any]]:
             data["created_at"] = created_at.isoformat()
         results.append(data)
     return results
+
+
+def list_recent_meal_names(user_id: str, days: int = 6) -> list[str]:
+    from datetime import datetime, timedelta, timezone
+
+    ensure_user(user_id)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    query = (
+        _user_ref(user_id)
+        .collection("meals")
+        .where("created_at", ">=", cutoff)
+        .order_by("created_at", direction=firestore.Query.DESCENDING)
+    )
+
+    names: list[str] = []
+    seen: set[str] = set()
+    for doc in query.stream():
+        meal = (doc.to_dict() or {}).get("meal") or {}
+        name = str(meal.get("name") or "").strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        names.append(name)
+    return names
