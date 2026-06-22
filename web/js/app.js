@@ -1,5 +1,8 @@
 const STORAGE_KEY = "erojuentiii_user_id";
 
+let pendingSuggestion = null;
+let rejectedMeals = [];
+
 function apiBase() {
   return window.APP_CONFIG?.API_BASE || "http://localhost:8000";
 }
@@ -33,13 +36,25 @@ async function apiRequest(path, options = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Request failed (${response.status})`);
+    const detail = Array.isArray(data.detail)
+      ? data.detail.map((item) => item.msg || JSON.stringify(item)).join(", ")
+      : data.detail;
+    throw new Error(detail || `Request failed (${response.status})`);
   }
   return data;
 }
 
 function selectedMealType() {
   return document.querySelector(".meal-type.active")?.dataset.mealType || "lunch";
+}
+
+function setSuggestionActionsEnabled(enabled) {
+  document.getElementById("approve-meal").disabled = !enabled;
+  document.getElementById("retry-meal").disabled = !enabled;
+}
+
+function setSuggestButtonLoading(loading) {
+  document.getElementById("get-meal").disabled = loading;
 }
 
 function renderMeal(meal) {
@@ -50,7 +65,7 @@ function renderMeal(meal) {
   ].filter(Boolean);
 
   const ingredients = (meal.ingredients || []).map((item) => `<li>${item}</li>`).join("");
-  const steps = (meal.steps || []).map((step, index) => `<li>${step}</li>`).join("");
+  const steps = (meal.steps || []).map((step) => `<li>${step}</li>`).join("");
 
   document.getElementById("meal-output").innerHTML = `
     <h3>${meal.name}</h3>
@@ -61,12 +76,13 @@ function renderMeal(meal) {
     ${steps ? `<p><strong>Steps</strong></p><ol>${steps}</ol>` : ""}
   `;
   document.getElementById("result").classList.remove("hidden");
+  setSuggestionActionsEnabled(true);
 }
 
 function renderHistory(items) {
   const list = document.getElementById("history");
   if (!items.length) {
-    list.innerHTML = "<li>No meals yet.</li>";
+    list.innerHTML = "<li>No approved meals yet.</li>";
     return;
   }
   list.innerHTML = items
@@ -115,20 +131,61 @@ async function savePrefs() {
   setStatus("Preferences saved.");
 }
 
+function buildMealRequest() {
+  return {
+    meal_type: selectedMealType(),
+    user_id: getUserId(),
+    custom: document.getElementById("custom").value.trim() || null,
+    rejected_meals: rejectedMeals,
+  };
+}
+
 async function getMeal() {
-  const userId = getUserId();
   setStatus("Finding a meal...");
-  const meal = await apiRequest("/api/get-meal", {
+  setSuggestionActionsEnabled(false);
+  setSuggestButtonLoading(true);
+  try {
+    const suggestion = await apiRequest("/api/get-meal", {
+      method: "POST",
+      body: JSON.stringify(buildMealRequest()),
+    });
+    pendingSuggestion = suggestion;
+    renderMeal(suggestion.meal);
+    setStatus("Like it? Save it — or try another.");
+  } finally {
+    setSuggestButtonLoading(false);
+  }
+}
+
+async function approveMeal() {
+  if (!pendingSuggestion) {
+    return;
+  }
+  setStatus("Saving meal...");
+  setSuggestionActionsEnabled(false);
+  await apiRequest("/api/meals/approve", {
     method: "POST",
     body: JSON.stringify({
-      meal_type: selectedMealType(),
-      user_id: userId,
-      custom: document.getElementById("custom").value.trim() || null,
+      user_id: getUserId(),
+      params: pendingSuggestion.params,
+      meal: pendingSuggestion.meal,
     }),
   });
-  renderMeal(meal);
-  setStatus("Meal ready.");
+  pendingSuggestion = null;
+  rejectedMeals = [];
+  setSuggestionActionsEnabled(false);
+  setStatus("Meal saved.");
   await loadHistory();
+}
+
+async function retryMeal() {
+  if (!pendingSuggestion?.meal?.name) {
+    await getMeal();
+    return;
+  }
+  rejectedMeals.push(pendingSuggestion.meal.name);
+  pendingSuggestion = null;
+  await getMeal();
 }
 
 document.querySelectorAll(".meal-type").forEach((button) => {
@@ -144,10 +201,18 @@ document.getElementById("save-pantry").addEventListener("click", () =>
 document.getElementById("save-prefs").addEventListener("click", () =>
   savePrefs().catch((err) => setStatus(err.message, true))
 );
-document.getElementById("get-meal").addEventListener("click", () =>
-  getMeal().catch((err) => setStatus(err.message, true))
+document.getElementById("get-meal").addEventListener("click", () => {
+  rejectedMeals = [];
+  getMeal().catch((err) => setStatus(err.message, true));
+});
+document.getElementById("approve-meal").addEventListener("click", () =>
+  approveMeal().catch((err) => setStatus(err.message, true))
+);
+document.getElementById("retry-meal").addEventListener("click", () =>
+  retryMeal().catch((err) => setStatus(err.message, true))
 );
 
+setSuggestionActionsEnabled(false);
 loadProfile()
   .then(loadHistory)
   .catch((err) => setStatus(err.message, true));

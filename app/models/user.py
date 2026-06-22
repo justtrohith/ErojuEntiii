@@ -2,6 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.meal_params import MealParams, MealRecommendation
+
 
 class UserPrefs(BaseModel):
     cuisine: Optional[str] = None
@@ -30,3 +32,14 @@ class MealHistoryItem(BaseModel):
     meal: dict
     params: dict
     created_at: Optional[str] = None
+
+
+class ApproveMealRequest(BaseModel):
+    user_id: str
+    params: MealParams
+    meal: MealRecommendation
+
+
+class ApproveMealResponse(BaseModel):
+    id: str
+    status: str = "saved"

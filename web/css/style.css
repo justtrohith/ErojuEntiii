@@ -103,6 +103,18 @@ button.primary:hover {
   color: white;
 }
 
+.meal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.meal-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .hidden {
   display: none;
 }

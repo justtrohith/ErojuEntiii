@@ -26,16 +26,23 @@ def _merge_user_context(params: MealParams) -> MealParams:
     return merged
 
 
-def get_meal(params: MealParams) -> MealRecommendation:
+def suggest_meal(params: MealParams) -> tuple[MealParams, MealRecommendation]:
     enriched = _merge_user_context(params)
     meal = ai_agent.generate_meal(enriched)
+    return enriched, meal
 
+
+def approve_meal(user_id: str, params: MealParams, meal: MealRecommendation) -> str:
+    return firebase_service.save_meal_history(
+        user_id,
+        params.model_dump(mode="json"),
+        meal.model_dump(mode="json"),
+    )
+
+
+def get_meal(params: MealParams, *, persist: bool = False) -> MealRecommendation:
+    enriched, meal = suggest_meal(params)
     user_id = params.resolved_user_id
-    if user_id:
-        firebase_service.save_meal_history(
-            user_id,
-            enriched.model_dump(mode="json"),
-            meal.model_dump(mode="json"),
-        )
-
+    if persist and user_id:
+        approve_meal(user_id, enriched, meal)
     return meal

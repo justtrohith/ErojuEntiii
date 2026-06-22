@@ -5,7 +5,7 @@ from typing import Any
 
 from google import genai
 
-from app.config import get_settings
+from app.config import get_meal_prompt_template, get_settings
 from app.models.meal_params import MealParams, MealRecommendation
 
 
@@ -18,21 +18,7 @@ def _get_client() -> genai.Client:
 
 
 def _build_prompt(params: MealParams) -> str:
-    lines = [
-        "You are a helpful meal planner. Suggest ONE specific meal that fits the constraints.",
-        "Respond with JSON only, no markdown fences, using this schema:",
-        "{",
-        '  "name": "meal name",',
-        '  "description": "one sentence",',
-        '  "ingredients": ["item1", "item2"],',
-        '  "steps": ["step1", "step2"],',
-        '  "macros_estimate": {"calories": 450, "protein_g": 30, "carbs_g": 40, "fat_g": 15},',
-        '  "time_minutes": 25,',
-        '  "uses_pantry": ["items from pantry used"]',
-        "}",
-        "",
-        f"Meal type: {params.meal_type.value}",
-    ]
+    lines = [get_meal_prompt_template(), "", f"Meal type: {params.meal_type.value}"]
 
     if params.cuisine_type:
         lines.append(f"Cuisine: {params.cuisine_type}")
@@ -54,6 +40,12 @@ def _build_prompt(params: MealParams) -> str:
         lines.append(f"Pantry (prefer these): {', '.join(params.pantry)}")
     if params.custom:
         lines.append(f"Additional notes: {params.custom}")
+    if params.rejected_meals:
+        lines.append(
+            "Do NOT suggest these meals (user rejected them): "
+            + ", ".join(params.rejected_meals)
+        )
+        lines.append("Suggest something clearly different.")
 
     lines.append("Keep steps practical and concise.")
     return "\n".join(lines)

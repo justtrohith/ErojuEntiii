@@ -206,7 +206,7 @@ async def _generate_meal(
     )
 
     try:
-        meal = await asyncio.to_thread(meal_service.get_meal, params)
+        meal = await asyncio.to_thread(meal_service.get_meal, params, persist=True)
         await message.reply_text(_format_meal(meal), parse_mode="Markdown")
     except FileNotFoundError as exc:
         await message.reply_text(f"Firebase is not configured: {exc}")

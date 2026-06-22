@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
+    meal_prompt: str = ""
     firebase_project_id: str = "erojuentiii"
     firebase_credentials_path: str = "./erojuentiii-firebase-adminsdk-fbsvc-53b519dfe0.json"
     firebase_credentials_json: str = ""
@@ -49,3 +50,25 @@ def get_firebase_credentials_dict() -> dict[str, Any]:
             "Set FIREBASE_CREDENTIALS_PATH or FIREBASE_CREDENTIALS_JSON."
         )
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+DEFAULT_MEAL_PROMPT = """You are ErojuEntiii, a helpful meal planner for Indian home cooking.
+Suggest ONE specific meal that fits the constraints.
+Prefer simple, practical recipes using pantry items when possible.
+Respond with JSON only, no markdown fences, using this schema:
+{
+  "name": "meal name",
+  "description": "one sentence",
+  "ingredients": ["item1", "item2"],
+  "steps": ["step1", "step2"],
+  "macros_estimate": {"calories": 450, "protein_g": 30, "carbs_g": 40, "fat_g": 15},
+  "time_minutes": 25,
+  "uses_pantry": ["items from pantry used"]
+}"""
+
+
+def get_meal_prompt_template() -> str:
+    prompt = get_settings().meal_prompt.strip()
+    if prompt:
+        return prompt.replace("\\n", "\n")
+    return DEFAULT_MEAL_PROMPT

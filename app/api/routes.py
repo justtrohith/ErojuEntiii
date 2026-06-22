@@ -2,8 +2,22 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.models.meal_params import MacroTargets, MealParams, MealRecommendation, MealType
-from app.models.user import MealHistoryItem, PantryUpdate, PrefsUpdate, UserPrefs, UserProfile
+from app.models.meal_params import (
+    MacroTargets,
+    MealParams,
+    MealRecommendation,
+    MealSuggestionResponse,
+    MealType,
+)
+from app.models.user import (
+    ApproveMealRequest,
+    ApproveMealResponse,
+    MealHistoryItem,
+    PantryUpdate,
+    PrefsUpdate,
+    UserPrefs,
+    UserProfile,
+)
 from app.services import firebase_service, meal_service
 
 router = APIRouter()
@@ -12,6 +26,18 @@ router = APIRouter()
 def _get_meal(params: MealParams) -> MealRecommendation:
     try:
         return meal_service.get_meal(params)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Meal generation failed: {exc}") from exc
+
+
+def _suggest_meal(params: MealParams) -> MealSuggestionResponse:
+    try:
+        enriched, meal = meal_service.suggest_meal(params)
+        return MealSuggestionResponse(meal=meal, params=enriched)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
@@ -117,6 +143,19 @@ def get_meal_query(
 
 
 @router.post("/get-meal", response_model=MealRecommendation)
-@router.post("/api/get-meal", response_model=MealRecommendation)
 def get_meal_body(params: MealParams) -> MealRecommendation:
     return _get_meal(params)
+
+
+@router.post("/api/get-meal", response_model=MealSuggestionResponse)
+def suggest_meal_body(params: MealParams) -> MealSuggestionResponse:
+    return _suggest_meal(params)
+
+
+@router.post("/api/meals/approve", response_model=ApproveMealResponse)
+def approve_meal(body: ApproveMealRequest) -> ApproveMealResponse:
+    try:
+        meal_id = meal_service.approve_meal(body.user_id, body.params, body.meal)
+        return ApproveMealResponse(id=meal_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc

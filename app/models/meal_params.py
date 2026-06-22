@@ -40,6 +40,7 @@ class MealParams(BaseModel):
     time_available_minutes: Optional[int] = Field(default=None)
     user_id: Optional[str] = Field(default=None)
     telegram_user_id: Optional[str] = Field(default=None)
+    rejected_meals: list[str] = Field(default_factory=list)
 
     @property
     def resolved_user_id(self) -> Optional[str]:
@@ -55,6 +56,15 @@ class MealParams(BaseModel):
     @field_validator("pantry", mode="before")
     @classmethod
     def normalize_pantry(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    @field_validator("rejected_meals", mode="before")
+    @classmethod
+    def normalize_rejected_meals(cls, value: Any) -> list[str]:
         if value is None:
             return []
         if isinstance(value, str):
@@ -78,3 +88,8 @@ class MealRecommendation(BaseModel):
     macros_estimate: MacroTargets = Field(default_factory=MacroTargets)
     time_minutes: Optional[int] = None
     uses_pantry: list[str] = Field(default_factory=list)
+
+
+class MealSuggestionResponse(BaseModel):
+    meal: MealRecommendation
+    params: MealParams

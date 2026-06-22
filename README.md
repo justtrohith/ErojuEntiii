@@ -27,6 +27,8 @@ cp .env.example .env
 
 Edit `.env` with your Gemini key and Firebase credentials path.
 
+Optional: set `MEAL_PROMPT` in `.env` as plain text (multiline in quotes locally, or `\n` on one line for deploy env vars). If unset, a built-in default is used.
+
 ## Run locally
 
 **API:**
