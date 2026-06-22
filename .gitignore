@@ -18,3 +18,11 @@ build/
 firebase-credentials*.json
 *-firebase-adminsdk-*.json
 .DS_Store
+
+# Node / Firebase CLI (local tooling only)
+node_modules/
+package-lock.json
+npm-debug.log*
+firebase-debug.log
+firebase-debug.*.log
+.firebase/
